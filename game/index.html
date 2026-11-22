@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laguna Azul — a sun-soaked open-world crime game</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #1a1210; font-family: 'Segoe UI', system-ui, sans-serif; }
+  #game-container { position: fixed; inset: 0; }
+  #game-container canvas { display: block; }
+  .hud { position: fixed; z-index: 10; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.8); pointer-events: none; user-select: none; }
+  #hud-top-left { top: 14px; left: 16px; }
+  #hud-stars { font-size: 26px; letter-spacing: 3px; color: #ffd94a; }
+  #hud-stars.hot { animation: pulse 0.7s infinite alternate; }
+  @keyframes pulse { from { opacity: 1; } to { opacity: 0.55; } }
+  #hud-cash { font-size: 24px; font-weight: 800; color: #7dff9a; margin-top: 2px; }
+  #hud-mission { font-size: 13px; font-weight: 700; letter-spacing: 1px; color: #ffe9a8; margin-top: 6px; }
+  #hud-timer { font-size: 13px; color: #dfe6ee; margin-top: 2px; }
+  #hud-top-right { top: 14px; right: 16px; text-align: right; }
+  #hud-minimap { width: 168px; height: 168px; border-radius: 50%; background: rgba(10, 14, 20, 0.55); box-shadow: 0 0 0 2px rgba(255,255,255,0.7), 0 4px 14px rgba(0,0,0,0.5); }
+  #hud-objective { top: 14px; left: 50%; transform: translateX(-50%); max-width: 560px; text-align: center; font-size: 15px; font-weight: 600; background: rgba(10, 14, 20, 0.55); padding: 8px 16px; border-radius: 20px; }
+  #hud-bottom-left { bottom: 16px; left: 16px; width: 220px; }
+  #hud-health-label { font-size: 12px; font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; }
+  #hud-health-bar { height: 14px; background: rgba(0,0,0,0.55); border-radius: 7px; overflow: hidden; border: 1px solid rgba(255,255,255,0.5); }
+  #hud-health-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #2ecc71, #7dff9a); transition: width 0.2s; }
+  #hud-health-fill.low { background: linear-gradient(90deg, #e74c3c, #ff7a6b); }
+  #hud-health-text { font-size: 12px; margin-top: 3px; color: #dfe6ee; }
+  #hud-ammo { font-size: 13px; font-weight: 700; margin-top: 6px; color: #ffe9a8; }
+  #hud-bottom-right { bottom: 16px; right: 16px; text-align: right; }
+  #hud-speed { font-size: 30px; font-weight: 800; }
+  #hud-controls-hint { font-size: 12px; color: #dfe6ee; margin-top: 2px; }
+  #hud-toast { top: 76px; left: 50%; transform: translateX(-50%); max-width: 640px; text-align: center; font-size: 16px; font-weight: 600; background: rgba(20, 24, 34, 0.8); padding: 10px 20px; border-radius: 10px; opacity: 0; transition: opacity 0.3s; border: 1px solid rgba(255, 201, 60, 0.5); }
+  #hud-toast.visible { opacity: 1; }
+  #hud-crosshair { top: 50%; left: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; display: none; }
+  #hud-crosshair::before, #hud-crosshair::after { content: ''; position: absolute; background: #fff; box-shadow: 0 0 4px #000; }
+  #hud-crosshair::before { left: 10px; top: 0; width: 2px; height: 22px; }
+  #hud-crosshair::after { top: 10px; left: 0; width: 22px; height: 2px; }
+  .overlay { position: fixed; inset: 0; z-index: 20; display: none; align-items: center; justify-content: center; background: linear-gradient(160deg, rgba(20, 8, 4, 0.82), rgba(8, 20, 40, 0.78)); color: #fff; text-align: center; }
+  .overlay.visible { display: flex; }
+  .overlay-card { max-width: 620px; padding: 36px 44px; }
+  .overlay-card h1 { font-size: 58px; letter-spacing: 6px; color: #ffb36b; text-shadow: 0 4px 0 #7a3b12, 0 8px 24px rgba(0,0,0,0.6); }
+  .overlay-card h2 { font-size: 18px; font-weight: 400; color: #ffe9a8; margin: 8px 0 20px; letter-spacing: 2px; }
+  .overlay-card p { font-size: 15px; line-height: 1.6; color: #e8e2d8; margin-bottom: 14px; }
+  .overlay-card .controls { font-size: 13px; line-height: 1.9; color: #cfd8e3; background: rgba(255,255,255,0.08); border-radius: 10px; padding: 12px 18px; margin: 0 auto 22px; display: inline-block; text-align: left; }
+  .overlay-card button { pointer-events: auto; cursor: pointer; font-size: 17px; font-weight: 800; letter-spacing: 1px; color: #1a1210; background: #ffb36b; border: none; border-radius: 10px; padding: 14px 30px; margin: 4px 6px; box-shadow: 0 4px 0 #7a3b12; }
+  .overlay-card button:hover { background: #ffc98a; }
+  .overlay-card button.secondary { background: #dfe6ee; box-shadow: 0 4px 0 #5a6a7a; }
+  .overlay-card button.ghost { background: transparent; color: #ffe9a8; box-shadow: none; border: 1px solid #ffe9a8; font-size: 13px; padding: 8px 16px; }
+  #menu-overlay { z-index: 30; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.min.js"
+  }
+}
+</script>
+</head>
+<body>
+<div id="game-container"></div>
+
+<div class="hud" id="hud-top-left">
+  <div id="hud-stars">☆☆☆☆☆</div>
+  <div id="hud-cash">$0</div>
+  <div id="hud-mission">LAGUNA AZUL</div>
+  <div id="hud-timer">00:00</div>
+</div>
+<div class="hud" id="hud-top-right">
+  <canvas id="hud-minimap" width="168" height="168"></canvas>
+</div>
+<div class="hud" id="hud-objective">Welcome to Laguna Azul</div>
+<div class="hud" id="hud-toast"></div>
+<div class="hud" id="hud-crosshair"></div>
+<div class="hud" id="hud-bottom-left">
+  <div id="hud-health-label">HEALTH</div>
+  <div id="hud-health-bar"><div id="hud-health-fill"></div></div>
+  <div id="hud-health-text">100 HP</div>
+  <div id="hud-ammo">AMMO 60</div>
+</div>
+<div class="hud" id="hud-bottom-right">
+  <div id="hud-speed">ON FOOT</div>
+  <div id="hud-controls-hint">WASD drive / walk &nbsp;·&nbsp; E steal car &nbsp;·&nbsp; Click shoot &nbsp;·&nbsp; Space handbrake &nbsp;·&nbsp; P pause &nbsp;·&nbsp; M mute</div>
+</div>
+
+<div class="overlay visible" id="menu-overlay">
+  <div class="overlay-card">
+    <h1>LAGUNA AZUL</h1>
+    <h2>A SUN-SOAKED OPEN-WORLD CRIME GAME</h2>
+    <p>You are Dante &ldquo;Rio&rdquo; Mar&iacute;n, getaway driver. Ten missions stand between you and the Azul Bank job — car thefts, causeway chases, a lighthouse signal, and the whole Azul PD with roadblocks and a helicopter. Lose them in the marina shallows. Spend the cash. Own the lagoon.</p>
+    <div class="controls">
+      <b>W A S D</b> — drive / walk &nbsp;&nbsp; <b>Mouse</b> — look / aim<br>
+      <b>E</b> — steal &amp; enter a car, exit a car &nbsp;&nbsp; <b>Click</b> — shoot<br>
+      <b>Space</b> — handbrake &nbsp;&nbsp; <b>Shift</b> — sprint &nbsp;&nbsp; <b>H</b> — horn<br>
+      <b>R</b> — reload &nbsp;&nbsp; <b>P</b> — pause &nbsp;&nbsp; <b>M</b> — mute &nbsp;&nbsp; <b>Enter</b> — start
+    </div>
+    <br>
+    <button id="btn-start">START THE HEIST</button>
+    <button id="btn-continue" class="secondary" style="display:none">CONTINUE</button>
+    <br>
+    <button id="btn-new" class="ghost">NEW GAME (erase save)</button>
+    <button id="btn-mute" class="ghost">SOUND: ON</button>
+  </div>
+</div>
+
+<div class="overlay" id="gameover-overlay">
+  <div class="overlay-card">
+    <h1>BUSTED</h1>
+    <h2>AZUL PD GOT YOU, RIO</h2>
+    <p>The marina clinic patched you up — but the bill took half your cash.</p>
+    <button id="btn-respawn">GET BACK OUT THERE</button>
+  </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
